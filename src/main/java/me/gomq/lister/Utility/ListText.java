@@ -1,5 +1,7 @@
 package me.gomq.lister.Utility;
 
+import java.util.Objects;
+
 import static me.gomq.lister.Lister.printUsage;
 
 public class ListText {
@@ -20,6 +22,11 @@ public class ListText {
     private String description;
     private String date;
 
+    public ListText() {}
+    public ListText(String title) {
+        this.title = title;
+    }
+
     private void checkUnacceptedCharacter(String characters) {
         if (characters.contains("__SEP_LINE_GOM_LISTER__")
                 || characters.contains("__LISTER_TITLE")
@@ -28,6 +35,10 @@ public class ListText {
             ) {
             throw new UnacceptedCharacterError();
         }
+    }
+
+    public boolean isSimilarWith(ListText otherInstance) {
+        return Objects.equals(otherInstance.title, this.title);
     }
 
     public void setTitle(String title) {

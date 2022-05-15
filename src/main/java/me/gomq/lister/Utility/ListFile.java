@@ -17,11 +17,11 @@ public class ListFile {
             this.chars = data.split("");
         }
 
-        public void replace(String regex) {
+        public void replace(String regex, char target) {
             for (int i = 0; i < regex.length(); i++) {
                 for (int j=0; j<chars.length; j++) {
                     if (Objects.equals(chars[j], Character.toString(regex.charAt(i)))) {
-                        chars[j] = "\0";
+                        chars[j] = Character.toString(target);
                         break;
                     }
                 }
@@ -29,7 +29,11 @@ public class ListFile {
 
             StringBuilder sb = new StringBuilder();
             for (String cVal : chars) {
-                if (!Objects.equals(cVal, "\0")) {
+                if (Objects.equals(target, '\0')) {
+                    if (!Objects.equals(cVal, Character.toString('\0'))) {
+                        sb.append(cVal);
+                    }
+                } else {
                     sb.append(cVal);
                 }
             }
@@ -40,9 +44,16 @@ public class ListFile {
             return data;
         }
     }
+    public static class AlreadyCreatedList extends RuntimeException {
+        private static final String message = "List File already has List Text that has same title.";
+        public AlreadyCreatedList() {
+            super(message);
+        }
+    }
 
-    private static final String listerHome = System.getProperty("user.home") + "\\.gom_list\\";
-    private final File listFile;
+    public final File listFile;
+    public static final String listerHome = System.getProperty("user.home") + "\\.gom_list\\";
+
     private boolean isEnabled = true;
     public ListFile(String fileName) {
         this.listFile = new File(listerHome + fileName + ".omlister");
@@ -63,8 +74,101 @@ public class ListFile {
         return this.listFile.exists() && this.listFile.delete();
     }
 
+    public boolean removeContent (String listTextTitle) {
+        if (!isEnabled) return false;
+        try {
+            ListText lt = new ListText(listTextTitle);
+
+            String listText = getListText();
+            String[] listTexts = listText.split("\n__SEP_LINE_GOM_LISTER__\n");
+
+            String wTitle = null;
+
+            for (String s : listTexts) {
+                String[] contents = s.split("\n");
+                for (String c : contents) {
+                    if (c.contains("__LISTER_TITLE=")) {
+                        CustomString title = new CustomString(c);
+                        title.replace("__LISTER_TITLE=", '\0');
+
+                        String t = title.toString();
+                        ListText _lt = new ListText(t);
+
+                        if (_lt.isSimilarWith(lt)) {
+                            wTitle = "__LISTER_TITLE=" + t;
+                        }
+                    }
+                }
+            }
+
+            CustomString[] _cs = new CustomString[listTexts.length];
+            if (wTitle != null) {
+                for (int i = 0; i < listTexts.length; i++) {
+                    String s = listTexts[i];
+                    CustomString cs = new CustomString(s);
+                    if (s.contains(wTitle)) {
+                        cs.replace(s, '\0');
+                    }
+
+                    _cs[i] = cs;
+                }
+            }
+
+            StringBuilder sb = new StringBuilder();
+            for (CustomString cs : _cs) {
+                if (cs.toString() != null && !Objects.equals(cs.toString(), ""))
+                    sb.append("\n__SEP_LINE_GOM_LISTER__\n").append(cs.toString()).append("\n");
+            }
+
+            String con = sb.toString();
+
+            BufferedWriter fileWriter = null;
+            try {
+                FileWriter __fw = new FileWriter(this.listFile, false);
+                fileWriter = new BufferedWriter(__fw);
+
+                fileWriter.write(con);
+                fileWriter.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                if (fileWriter != null) {
+                    try {
+                        fileWriter.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        } catch (IOException e) {
+            return false;
+        }
+
+        return true;
+    }
+
     public boolean writeFile(ListText text) throws IOException {
         if (!isEnabled) return false;
+
+        // Check List File already contains similar (same title) List Text
+        String listText = getListText();
+        String[] listTexts = listText.split("\n__SEP_LINE_GOM_LISTER__\n");
+        for (String s : listTexts) {
+            String[] contents = s.split("\n");
+            for (String c : contents) {
+                if (c.contains("__LISTER_TITLE=")) {
+                    CustomString title = new CustomString(c);
+                    title.replace("__LISTER_TITLE=", '\0');
+
+                    String t = title.toString();
+                    ListText lt = new ListText(t);
+
+                    if (lt.isSimilarWith(text)) {
+                        throw new AlreadyCreatedList();
+                    }
+                }
+            }
+        }
 
         BufferedWriter fileWriter = null;
         try {
@@ -75,7 +179,6 @@ public class ListFile {
             fileWriter.flush();
         } catch (IOException e) {
             e.printStackTrace();
-            System.exit(1);
         } finally {
             if (fileWriter != null) {
                 try {
@@ -106,13 +209,13 @@ public class ListFile {
                     CustomString cs = new CustomString(c);
 
                     if (c.contains("__LISTER_TITLE")) {
-                        cs.replace("__LISTER_TITLE=");
+                        cs.replace("__LISTER_TITLE=", '\0');
                         listTitles[i] = cs.toString();
                     } else if (c.contains("__LISTER_DESCRIPTION")) {
-                        cs.replace("__LISTER_DESCRIPTION=");
+                        cs.replace("__LISTER_DESCRIPTION=", '\0');
                         listDescriptions[i] = cs.toString();
                     } else if (c.contains("__LISTER_DATE")) {
-                        cs.replace("__LISTER_DATE=");
+                        cs.replace("__LISTER_DATE=", '\0');
                         listDates[i] = cs.toString();
                     }
                 }
@@ -149,6 +252,7 @@ public class ListFile {
         List<String> fileList = Stream.of(Objects.requireNonNull(new File(listerHome).listFiles()))
                 .filter(file -> !file.isDirectory())
                 .map(File::getName)
+                .filter(name -> name.endsWith(".omlister"))
                 .collect(Collectors.toList());
 
         StringBuilder sb = new StringBuilder();
