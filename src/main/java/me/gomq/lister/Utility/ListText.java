@@ -43,6 +43,10 @@ public class ListText {
         this.date = date;
     }
 
+    public boolean isSetUp() {
+        return this.title != null;
+    }
+
     public String toString() {
         if (title == null) {
             printUsage();
