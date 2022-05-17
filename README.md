@@ -1,9 +1,41 @@
 # Lister
-![My TODO Project](https://github.com/users/igomq/projects/2)<br/><br/>
+![TODO 프로젝트](https://github.com/users/igomq/projects/2)<br/><br/>
 
 ## Lister - Simple CLI Listing (Planning) Program
-Status: In Develop
+개발 상태: 개발 완료 (모든 기본 기능)
 
-### Goal
-Implement all of features.
-Write readable code.
+## 기능
+![image](https://user-images.githubusercontent.com/48321102/168833521-3e0c2592-f1a8-413e-9f74-b0890408d2ff.png)
+^ Powershell 에서 Lister 프로그램을 구동시킨 모습.
+
+### 파일 관리
++ create   (생성) : 리스트 파일을 생성한다. (디렉토리: ~/.gom_lister/)
++ remove   (삭제) : 리스트 파일을 삭제한다.
++ encrypt  (암호화) : 리스트 파일을 암호화한다. (AES-256)
++ decrypt  (복호화) : 리스트 파일을 복호화한다.
+
+### 리스트 관리
++ load        (로드) : 리스트 파일을 로드한다.
++ unload      (언로드) : 리스트 파일을 언로드한다.
++ add         (편집) : 편집모드를 활성화한다.
++ title       (제목) : 새 리스트의 제목을 설정한다.
++ description (설명) : 새 리스트의 설명을 정한다.
++ date        (날짜) : 새 리스트의 작성일 / D-Day 를 작성한다 (포멧 상관 無).
++ done        (완료) : 편집모드를 비활성화하고, 수정된 내용을 저장한다.
++ trash       (삭제) : 리스트를 삭제한다.
+
+### 리스트 확인
++ list     (목록) : 리스트 파일 목록을 가져온다.
++ show     (확인) : 리스트에 작성된 내용을 불러온다.
+
+### 기타
++ exit     (퇴장) : 프로그램을 종료한다.
+
+
+## 설명
+-- -- --
+제가 깃허브에 올리면서 작업을 하던 프로젝트 중 처음으로 제대로 완성 단계까지 온 프로그램인듯 합니다 ㅋㅋ...
+<br/> 그냥 평범하게 리스트 프로그램을 한번 만들어보면 어떨까? 하는 생각에서 진짜로 이미 있는 프로그램이 많을텐데도, <br/> 귀찮아도 끝내긴 했네요.
+<br/> 앞으로도 간간히 몇몇 수정은 있을거지만, 설마 이딴 허접한 프로그램을 누가 쓰겠습니까ㅋㅋ
+<br/> 계속 이렇게 제가 귀차니즘을 가지지 않고 시작하는 프로젝트들은 모두 완성하길...
+<br/> 참고로, 위에 '기능'에서 간단한 기능 소개를 읽으시고, 자세한 설명은 코드를 분석하시거나 프로그램에서 help 명령어를 입력해주세요.

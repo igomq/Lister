@@ -246,7 +246,8 @@ public class ListFile {
     }
 
     public static boolean isFileExist(String fileName) {
-        return Files.exists(Path.of(listerHome + fileName + ".omlister"));
+        return Files.exists(Path.of(listerHome + fileName + ".omlister"))
+                || Files.exists(Path.of(listerHome + fileName + "-temp.omlister"));
     }
     public static String getLists() {
         List<String> fileList = Stream.of(Objects.requireNonNull(new File(listerHome).listFiles()))
@@ -257,9 +258,19 @@ public class ListFile {
 
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < fileList.size(); i++) {
-            sb.append("File No. ").append(i).append(" -> ").append(fileList.get(i)).append("\n");
+            sb.append("File No. ").append(i).append(" -> ")
+                    .append(fileList.get(i).replaceFirst("-temp", "").replace(".encrypted", ""))
+                    .append("      | Encrypted: ")
+                    .append(fileList.get(i).contains("-temp") || fileList.get(i).contains(".encrypted"))
+                    .append((fileList.get(i).contains("-temp") || fileList.get(i).contains(".encrypted")) ?
+                            "      | Decrypted: " + fileList.get(i).contains("-temp") : "")
+                    .append("\n");
         }
 
         return sb.toString();
+    }
+
+    public static boolean isFileEncryptedFile (String fileName) {
+        return Files.exists(Path.of(listerHome + fileName + "-temp.omlister"));
     }
 }

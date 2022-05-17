@@ -9,9 +9,14 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.List;
+import java.util.Objects;
 import java.util.Scanner;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class Lister {
+    private static String encryptionKey;
     public static void main(String[] args) throws Exception {
         boolean addingEnabled = false;
         boolean exitQuestion = false;
@@ -21,7 +26,26 @@ public class Lister {
 
         System.out.print(ConsoleColors.RESET);
         Scanner scan = new Scanner(System.in);
-        System.out.println("Lister by GomQ\nVersion 1.0b\n\nGithub: https://github.com/igomq/Lister");
+        System.out.println("Lister by GomQ\nVersion 1.0\n\nGithub: https://github.com/igomq/Lister");
+
+        // Check decrypted List Files and remove them
+        {
+            List<String> fileList = Stream.of(Objects.requireNonNull(new File(ListFile.listerHome).listFiles()))
+                    .filter(file -> !file.isDirectory())
+                    .map(File::getName)
+                    .filter(name -> name.endsWith(".omlister"))
+                    .collect(Collectors.toList());
+
+            for (String s : fileList) {
+                if (s.contains("-temp")) {
+                    File decFile = new File(ListFile.listerHome + s);
+                    boolean dummy = decFile.delete();
+
+                    System.out.println("Deleted " + s + " file for security. (This file is decrypted file)");
+                }
+            }
+        }
+
         for (;;) {
             System.out.print(ConsoleColors.RESET);
             if (exitQuestion) {
@@ -48,6 +72,7 @@ public class Lister {
             String command = arg[0];
 
             System.out.print(ConsoleColors.RESET);
+
             switch (command) {
                 case "": break; // 공백 처리
                 case "create", "c": {
@@ -94,7 +119,6 @@ public class Lister {
                     System.out.print(f);
                 } break; // 리스트 파일 목록
                 case "load", "l": {
-
                     String fileName;
                     try {
                         fileName = arg[1];
@@ -103,11 +127,18 @@ public class Lister {
                         break;
                     }
                     if (!ListFile.isFileExist(fileName)) {
-                        System.out.println(fileName + ".omlister not found. You can create file with `create` command");
+                        System.out.println(fileName + ".omlister not found. You can create file with `create` command" +
+                                "\n(Addition) See file you try to load is 'Encrypted' by `list` command." +
+                                "\n           If that file is encrypted, you should decrypt it first by `decrypt` command.");
+                        break;
+                    }
+                    if (fileName.contains(".encrypted")) {
+                        System.out.println("You cannot load encrypted file.");
                         break;
                     }
 
-                    currentFile = new ListFile(fileName);
+                    isCurrentEncrypted = ListFile.isFileEncryptedFile(fileName);
+                    currentFile = new ListFile(fileName + (isCurrentEncrypted ? "-temp" : ""));
                     System.out.println("File "+fileName+".omlister loaded. Now you can see your list or add on your list.");
                 } break; // 리스트 파일 로드 (currentFile 에 저장)
                 case "show", "s": {
@@ -239,10 +270,63 @@ public class Lister {
                     }
                 } break; // 리스트 파일 암호화
                 case "decrypt", "C": {
-                    // TODO 복호화 구현
+                    String fileName;
+                    String passwd;
+                    try {
+                        fileName = arg[1];
+                        passwd = arg[2];
+
+                        encryptionKey = passwd;
+                    } catch (IndexOutOfBoundsException e) {
+                        System.out.println("Argument required. Please see help message by `help` command." + ConsoleColors.RESET);
+                        break;
+                    }
+
+                    Encryptor encryptor = new Encryptor(passwd);
+                    try {
+                        File f = new File(ListFile.listerHome + fileName + ".encrypted.omlister");
+                        if (!f.exists()) {
+                            System.out.println(fileName + ".encrypted.omlister Encrypted List File does not found");
+                            break;
+                        }
+
+                        ListFile lf = new ListFile(fileName + ".encrypted");
+                        String encryptedStr = lf.getListText();
+                        String decrypted = encryptor.decrypt(encryptedStr);
+
+                        File newFile = new File(ListFile.listerHome + fileName + "-temp.omlister");
+                        boolean dummy = newFile.createNewFile();
+                        BufferedWriter fileWriter = null;
+                        try {
+                            FileWriter __fw = new FileWriter(newFile, false);
+                            fileWriter = new BufferedWriter(__fw);
+
+                            fileWriter.write(decrypted);
+                            fileWriter.flush();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        } finally {
+                            if (fileWriter != null) {
+                                try {
+                                    fileWriter.close();
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                            System.out.println("File successfully decrypted and created " + fileName + "-temp file.\n" +
+                                    "Now you load this file by command `load fileName (without -temp)`");
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                 } break; // 리스트 파일 복호화
                 case "unload", "u": {
+                    if (isCurrentEncrypted && currentFile != null) {
+                        encrypt(currentFile, encryptionKey);
+                        boolean dummy = currentFile.listFile.delete();
+                    }
                     currentFile = null;
+                    isCurrentEncrypted = false;
                     System.out.println("Successfully unloaded List File.");
                 } break; // 리스트 파일 언로드
                 case "done", "x": {
@@ -307,13 +391,16 @@ public class Lister {
                             "trash(T) title : Remove list which has same title of entered.\n" +
                             "encrypt(E) password : Encrypt List File with AES-256 with entered password(key)\n" +
                             "   ** password max length : 32 characters, only accept alphabets, numbers, !, ?, @ and +.\n" +
-                            "decrypt(C) password : Decrypt loaded file and create temp file." +
+                            "decrypt(C) fileName password : Decrypt file and create temp file." +
                             "unload(u) : Unload List File\n" +
                             "help(h) : Show this Message\n" +
                             "exit(X) : Close program\n");
                 } break; // 도움말
                 case "exit", "X": {
-                    
+                    if (isCurrentEncrypted && currentFile != null) {
+                        encrypt(currentFile, encryptionKey);
+                        boolean dummy = currentFile.listFile.delete();
+                    }
                     if (addingEnabled) {
                         System.out.print("It seems you are adding list on List File, are you sure you want to end the program?" +
                                 ConsoleColors.RESET + "\n Please Enter : Y(yes) N(no)\n y/n : "
@@ -344,5 +431,40 @@ public class Lister {
                             "[E encrypt] [C decrypt]\n" +
                             "[h help]\n" +
                             "[u unload] [X exit]\n" + ConsoleColors.RESET);
+    }
+
+    private static void encrypt(ListFile lf, String key) {
+        Encryptor encryptor = new Encryptor(key);
+        try {
+            String encrypted = encryptor.encrypt(lf.getListText());
+
+            String fileName = lf.listFile.getName().replaceFirst("-temp.omlister",".encrypted.omlister");
+
+            File newFile = new File(ListFile.listerHome + fileName);
+            boolean dummy = newFile.createNewFile();
+
+            BufferedWriter fileWriter = null;
+            try {
+                FileWriter __fw = new FileWriter(newFile, false);
+                fileWriter = new BufferedWriter(__fw);
+
+                fileWriter.write(encrypted);
+                fileWriter.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                if (fileWriter != null) {
+                    try {
+                        fileWriter.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+
+            dummy = lf.listFile.delete();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
